@@ -1,10 +1,11 @@
 <template>
-  <div class="hello">
+  <div  class="hello">
     <!-- <h1>{{dataSource[0]}}</h1>
     <div v-for="(item, index) in dataSource" :key="item.id">
       {{index}}. {{item.name}}
   </div> -->
 
+    <input @input="onFilterCompany" v-model="filter" placeholder="Search Company">
     <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
       <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
         <thead
@@ -16,26 +17,21 @@
           "
         >
           <tr>
-            <!-- <th @click="myclick" scope="col" class="px-6 py-3">ID</th> -->
-            <!-- <th scope="col" class="px-6 py-3">
-              Name <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-            </th> -->
+
             <HeaderItem title="ID"/>
-            <HeaderItem @sort="sortMethod" @click.prevent="sortMethod() ref="post" title="Name"/>
-            <!-- <th scope="col" class="px-6 py-3">Age</th> -->
+            <HeaderItem ref="headeritemName" @sort="sortMethod" @click="$refs.headeritemName.sortMethod()" title="Name"/>
             <HeaderItem title="Age"/>
-            <HeaderItem @sort="sortMethod" title="Salary"/>
+            <HeaderItem ref="headeritemID" @sort="sortMethod" @click="$refs.headeritemID.sortMethod()" title="Salary"/>
             <HeaderItem title="Company"/>
-<!-- 
-            <th scope="col" class="px-6 py-3">Salary</th>
-            <th scope="col" class="px-6 py-3">Company</th> -->
+
+
             <th scope="col" class="px-6 py-3">
               <span class="sr-only">Edit</span>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item) in dataSource" :key="item.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+          <tr v-for="(item) in !isFilterActive ? displayingDataSource : filteredDataSource" :key="item.id" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
             <th
               scope="row"
               class="
@@ -70,47 +66,146 @@
 
         </tbody>
       </table>
+
+      <VueTailwindPagination
+        ref="pagin"
+        :current="currentPage"
+        :total="total"
+        :per-page="perPage"
+        @page-changed="currentPage = $event"
+
+       />
+
     </div>
+
+
+  
 
   </div>
 </template>
 
+
 <script lang="ts">
 import { Options, Vue } from "vue-class-component";
-import { Employee } from "../models/employee";
+import { Employee, HeaderItemElement } from "../models/employee";
 import { data } from "../models/data";
 import HeaderItem from "./HeaderItem.vue";
+import VueTailwindPagination  from '@ocrv/vue-tailwind-pagination'
 
 @Options({
   components: {
     HeaderItem,
+    VueTailwindPagination,
   },
 })
+
 
 export default class Table extends Vue {
   msg!: string;
   dataSource: Employee[] = [];
+  displayingDataSource: Employee[] = [];
+  filteredDataSource: Employee[] = [];
+  isFilterActive = false;
+  actuallyClickedHeader = "";
+  isActuallyForAsc = false;
+  isFirstTime = true;
+
+  currentPage: any = 1;
+  perPage:any =  5;
+  total:any =  20;
+  filter:any =  '';
+
+  headerItems: HeaderItemElement[] = [
+    {
+      headerTitle: "ID",
+      headername: "id",
+    },
+    {
+      headerTitle: "Name",
+      headername: "name",
+
+    },
+    {
+      headerTitle: "Age",
+      headername: "age",
+    },
+    {
+      headerTitle: "Salary",
+      headername: "salary",
+    },
+    {
+      headerTitle: "Company",
+      headername: "company",
+    },
+  ]
 
   // data:string;
   mounted() {
     this.dataSource = data;
+    this.displayingDataSource = this.dataSource;
   }
 
-  myclick = () =>{
-    console.log("----------");
-    this.dataSource = [];
+
     
+  onFilterCompany = () =>{
+    console.log(this.filter.length)
+    if(this.filter.length > 2){
+      this.isFilterActive = true;
+      this.filteredDataSource = this.displayingDataSource.filter(item => item.company.includes(this.filter))
+
+    } else{
+      this.isFilterActive = false;
+      this.filteredDataSource = this.displayingDataSource;
+      console.log(this.displayingDataSource);
+      
+    }
+
   }
 
   sortMethod = (item: string) => {
-    console.log("-----------asdasd", item);
+
     
+    let clickedHeader = JSON.parse(JSON.stringify(this.headerItems.find(item_ => 
+      item_.headerTitle == item
+    ))) 
+    // debugger
+    if(clickedHeader){      
+      this.isFirstTime ?  this.actuallyClickedHeader = clickedHeader.headername : null;
+      this.isFirstTime = false;
+      this.isActuallyForAsc = !this.isActuallyForAsc;
+      this.actuallyClickedHeader === clickedHeader.headername ? null : (this.isActuallyForAsc = false);
+      this.displayingDataSource  = JSON.parse(JSON.stringify(this.sortColumn(clickedHeader.headername,this.filteredDataSource)));
+      this.actuallyClickedHeader = clickedHeader.headername;
+
+    }
   }
 
+  sortColumn = (columnTitle: string,filteredList:Employee[]) => {
 
-  toggleDetails () {
-    this.$refs.post.toggleDetails()
-  }
+    this.displayingDataSource = this.isFilterActive ? filteredList :  this.dataSource;
+        if(this.isActuallyForAsc){
+          return this.displayingDataSource.sort( function(a:any,b:any) {
+              if (a[columnTitle] < b[columnTitle]) {
+                  return -1;
+                }
+                if (a[columnTitle] > b[columnTitle]) {
+                  return 1;
+                }
+                return 0;
+            })
+        } else{
+          return this.displayingDataSource.sort( function(a:any,b:any) {
+              if (a[columnTitle] > b[columnTitle]) {
+                  return -1;
+                }
+                if (a[columnTitle] < b[columnTitle]) {
+                  return 1;
+                }
+                return 0;
+            })
+        }
+
+    }
 }
 </script>
 

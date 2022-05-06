@@ -4,4 +4,6 @@ import router from './router'
 import store from './store'
 import './index.css'
 import 'flowbite';
+import '@ocrv/vue-tailwind-pagination/styles'
+
 createApp(App).use(store).use(router).mount('#app')
